@@ -1,0 +1,4 @@
+"./src/SILABS_STARTUP.OBJ",
+"./src/USBXpress_Echo_main.OBJ",
+"./src/descriptor.OBJ"
+TO "USBXPRESSVOLTMETER.OMF.CRBUILD" REMOVEUNUSED PRINT(.\USBXpressVoltmeter.m51) PAGEWIDTH (120) PAGELENGTH (65) CLASSES( ECODE(C:0x0 - C:0x3dfe), HCONST(C:0x0 - C:0x3dfe), XDATA(X:0x0 - X:0x7ff), HDATA(X:0x0 - X:0x7ff))
