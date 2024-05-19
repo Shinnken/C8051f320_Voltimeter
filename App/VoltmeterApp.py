@@ -5,24 +5,25 @@ import numpy as np
 from tkinter import *
 
 
-class VoltmeterApp(object):
-    def __init__(self, dbg = 0):
+class VoltmeterApp():
+    def __init__(self, communication):
         self._data = []
+        self.communication = communication
         self.create_main_window()
         self.create_frames()
-        self.create_buttons()
-        self.create_self.figure_and_self.axis()
         self.pack_frames()
+        self.create_buttons()
         self.pack_buttons()
+        self.create_figure_and_axis()
         self.set_plot_properties()
-        self.create_self.canvas()
+        self.create_canvas()
         self.main_window.protocol("WM_DELETE_WINDOW", self.on_close)
         self.main_window.mainloop()
 
     def create_main_window(self):
         self.main_window = Tk()
-        self.main_window.conself.figure(background='light blue')
-        self.main_window.title("ECG-LArdmon")
+        self.main_window.configure(background='light blue')
+        self.main_window.title("Voltmeter")
         self.main_window.geometry('830x700')
         self.main_window.resizable(width=False, height=False)
 
@@ -63,22 +64,23 @@ class VoltmeterApp(object):
         self.canvas.draw()
 
 
-    def start_plot(self):
-        # HERE ADD THE CODE TO READ DATA FROM USBXpress
-        # print(f"pl:{bluetooth.packet_loss}")
-        # value = bluetooth.listen()
-        value = np.random.uniform(0, 5) # For testing
-        # print(f"Received {value} is type of {type(value)}. Packet loss: {bluetooth.packet_loss}")
-        ###############################################
+    def set_communication_commands(self, start_function, stop_function, read_function, write_function):
+        self.communication.start = start_function
+        self.communication.stop = stop_function
+        self.communication.read = read_function
+        self.communication.write = write_function
+        
 
+    def start_plot(self):
+        value = self.communication.read()
         self._data.append(value)
         self.ax.clear()  # Clear the plot
         self.ax.plot(self._data, color="blue")
     
         # Set the plot properties again after clearing
-        self.ax.set_title("Electrocadiogram")
+        self.ax.set_title("Voltmeter")
         self.ax.set_xlabel("Time(Sec)")
-        self.ax.set_ylabel("Ressistance(Ω)")
+        self.ax.set_ylabel("Voltage(V)")
         self.ax.set_xlim(0, 200)
         self.ax.set_ylim(min(self._data)-10000, max(self._data)+10000)
         self.ax.grid(visible=True, which='major', color='#666666', linestyle='-')
@@ -90,11 +92,11 @@ class VoltmeterApp(object):
 
     def on_close(self):
         self.main_window.destroy()
-        # bluetooth.s.close() # Change this to close the USBXpress connection
+        self.communication.stop()
     
     def close_window(self):
         self.main_window.destroy()
-        # bluetooth.s.close() # Change this to close the USBXpress connection
+        self.communication.stop()
 
     def clearData(self):
         self._data = []

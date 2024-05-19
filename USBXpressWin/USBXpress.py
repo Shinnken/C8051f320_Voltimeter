@@ -71,7 +71,7 @@ def sleep(ms): time.sleep(float(ms)/ 1000)
 class UsbxpError( Exception ): pass
 ex = UsbxpError
 
-class Usbxp(object):
+class Usbxp():
     def __init__(self, dbg = 0):
         self.si = windll.LoadLibrary(dllabspath)
         self.h = HANDLE()

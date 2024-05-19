@@ -1,6 +1,17 @@
-from USBXpress.USBXpress import Usbxp
+from USBXpressWin.USBXpress import Usbxp
+from App.VoltmeterApp import VoltmeterApp
+
+
 
 def main():
+    usb = Usbxp()
+    app = VoltmeterApp(usb)
+    app.set_communication_commands(usb.open, usb.close, usb.read, usb.write)
+
+
+
+
+def main_old():
     print("Hello World!")
     # List USBXpress devices
     u = Usbxp()
