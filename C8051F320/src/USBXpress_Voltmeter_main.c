@@ -1,7 +1,7 @@
 /*
- * USBXpress_Echo_main.c
+ * USBXpress_Voltmeter_main.c
  *
- * Main routine for USBXpress Echo example.
+ * Main routine for USBXpress Voltmeter.
  *
  * This example echos any data sent over usb back up to the host.
  * It also blinks an led at 1Hz to indicate that the core is running.
@@ -83,6 +83,7 @@ void main (void)
   Sysclk_Init ();                        // Initialize system clock
   Port_Init ();                          // Initialize crossbar and GPIO
   Timer0_Init();                         // Initialize Timer0
+  ADC_Init();                              // Inirialize ADC0
 
   // USBXpress Initialization
   USBX_init(&initStruct);
@@ -207,6 +208,14 @@ static void Port_Init (void)
 {
    P2MDOUT   = P2MDOUT_B2__PUSH_PULL;   // P2.2 is push-pull
    XBR1      = XBR1_XBARE__ENABLED;     // Enable the crossbar
+}
+
+static void ADC_Init (void)
+{
+   AMX0P      = AMX0P_AMX0P__ADC0P7;   // Select ADC0P.7
+   AMX0N      = AMX0N_AMX0N__GND;      // Ground (single-ended mode)
+   ADC0CN     = 0xc0;                  // Enable conversion and track mode
+                                       // (conversion only when "1" is written to AD0BUSY bit)
 }
 
 /**************************************************************************//**

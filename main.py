@@ -6,7 +6,6 @@ from App.VoltmeterApp import VoltmeterApp
 def main():
     usb = Usbxp()
     app = VoltmeterApp(usb)
-    app.set_communication_commands(usb.open, usb.close, usb.read, usb.write)
 
 
 

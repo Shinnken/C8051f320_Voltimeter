@@ -9,6 +9,7 @@ class VoltmeterApp():
     def __init__(self, communication):
         self._data = []
         self.communication = communication
+        self.communication.open()
         self.create_main_window()
         self.create_frames()
         self.pack_frames()
@@ -64,15 +65,8 @@ class VoltmeterApp():
         self.canvas.draw()
 
 
-    def set_communication_commands(self, start_function, stop_function, read_function, write_function):
-        self.communication.start = start_function
-        self.communication.stop = stop_function
-        self.communication.read = read_function
-        self.communication.write = write_function
-        
-
     def start_plot(self):
-        value = self.communication.read()
+        value = self.communication.read(10)
         self._data.append(value)
         self.ax.clear()  # Clear the plot
         self.ax.plot(self._data, color="blue")
@@ -92,11 +86,11 @@ class VoltmeterApp():
 
     def on_close(self):
         self.main_window.destroy()
-        self.communication.stop()
+        self.communication.close()
     
     def close_window(self):
         self.main_window.destroy()
-        self.communication.stop()
+        self.communication.close()
 
     def clearData(self):
         self._data = []
