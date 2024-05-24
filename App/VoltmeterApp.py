@@ -51,11 +51,11 @@ class VoltmeterApp():
         self.clear_button.pack(side=RIGHT, padx=26)
  
     def set_plot_properties(self):
-        self.ax.set_title("Polygraph")
+        self.ax.set_title("Voltmeter")
         self.ax.set_xlabel("Time(Sec)")
-        self.ax.set_ylabel("Ressistance(Ω)")
+        self.ax.set_ylabel("Voltage(V)")
         self.ax.set_xlim(0, 200)
-        self.ax.set_ylim(50000, 250000)
+        self.ax.set_ylim(0, 2000)
         self.ax.grid(visible=True, which='major', color='#666666', linestyle='-', alpha=0.2)
         self.ax.minorticks_on()
 
@@ -66,17 +66,21 @@ class VoltmeterApp():
 
 
     def start_plot(self):
-        value = self.communication.read(8)
-        self._data.append(int.from_bytes(value, byteorder='big'))
+        self.communication.write('0')
+        value = self.communication.read(2)
+        value = int.from_bytes(value, byteorder='little')
+        print(value)
+        value_in_volts = (value/1023)*3300
+        self._data.append(value_in_volts)
         self.ax.clear()  # Clear the plot
         self.ax.plot(self._data, color="blue")
     
         # Set the plot properties again after clearing
         self.ax.set_title("Voltmeter")
         self.ax.set_xlabel("Time(Sec)")
-        self.ax.set_ylabel("Voltage(V)")
+        self.ax.set_ylabel("Voltage(mV)")
         self.ax.set_xlim(0, 200)
-        self.ax.set_ylim(min(self._data)-100, max(self._data)+100)
+        self.ax.set_ylim(min(self._data)-10, max(self._data)+10)
         self.ax.grid(visible=True, which='major', color='#666666', linestyle='-')
         self.ax.minorticks_on()
         self.canvas.draw_idle()

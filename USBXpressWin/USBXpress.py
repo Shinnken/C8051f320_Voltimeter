@@ -37,6 +37,7 @@ import os.path
 import time
 from ctypes.wintypes import *
 from ctypes import *
+import traceback
 
 
 dll_name = "SiUSBxp.dll"
@@ -98,7 +99,7 @@ class Usbxp():
     def list(self):
         self.ndev = self._number()
         #SI_GetProductString (DWORD DeviceNum, LPVOID DeviceString, DWORD Options)
-        dsp = c_char_p(('\0' * 256).encode())
+        dsp = c_char_p(('\0' * 256).encode(errors='ignore'))
         #define SI_RETURN_SERIAL_NUMBER 0x00
         #define SI_RETURN_DESCRIPTION 0x01
         #define SI_RETURN_LINK_NAME 0x02
@@ -136,13 +137,16 @@ class Usbxp():
     def read(self, nb):
         # SI_STATUS SI_Read (HANDLE Handle, LPVOID Buffer, DWORD NumBytesToRead,
         # DWORD *NumBytesReturned, OVERLAPPED* o = NULL)
-        buf = c_char_p(('\0' * 4096).encode())
+        # buf = c_char_p(('\0' * 4096).encode())
+        buf = create_string_buffer(4096)
 #        o = c_char_p('\0' * 4096)
         nr = DWORD()
 #        r = self.si.SI_Read(self.h, byref(buf), DWORD(nb), byref(nr), 0)
         r = self.si.SI_Read(self.h, buf, DWORD(nb), byref(nr), None)
-        if r: self.__del__(r)
-        s = buf.value[:nr.value]
+        # if r: self.__del__(r)
+        if r: raise ex(r_code[r])
+        # s = buf.value[:nr.value]
+        s = buf.raw[:nr.value]
         return s
 
 
@@ -153,7 +157,8 @@ class Usbxp():
         nb = DWORD()
         r = self.si.SI_Write(self.h, buf, DWORD(len(s)), byref(nb), 0)
         if self.dbg: print ("Usbxp.write(): '%s' %d %s" % (s, nb.value, r_code[r]))
-        if r: self.__del__(r)
+        # if r: self.__del__(r)
+        if r: raise ex(r_code[r])
         return nb.value
 
     def writeln(self, s = ""):
@@ -233,13 +238,21 @@ def main():
     print (l)
     # Open USBXpress device
     u.open()
+    u.settimeout(100, 100)
     while 1:
-        # Write to USBXpress
-        i = input("Enter:")
-        if i == "q": break
-        u.write(i)
-        # Read from USBXpress
-        print (u.read(16))
+        try:
+            # Write to USBXpress
+            i = input("Enter:")
+            if i == "q": break
+            u.write(i)
+            # Read from USBXpress
+            output = u.read(2)
+            print (hex(int(output[0])),hex(int(output[1])))
+            print ("Received: ", int.from_bytes(output, byteorder='little'))
+        except UsbxpError as e:
+            print ('UsbxpError: ', e)
+            print(traceback.format_exc())
+            print("Try again...")
     # Close USBXpress
     u.close()
 
