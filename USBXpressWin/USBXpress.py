@@ -236,10 +236,10 @@ def main():
     while 1:
         # Write to USBXpress
         i = input("Enter:")
+        if i == "q": break
         u.write(i)
         # Read from USBXpress
-        print (u.read(10))
-        if i == "q": break
+        print (u.read(16))
     # Close USBXpress
     u.close()
 

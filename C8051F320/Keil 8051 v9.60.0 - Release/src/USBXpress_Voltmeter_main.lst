@@ -1,4 +1,4 @@
-C51 COMPILER V9.60.0.0   USBXPRESS_VOLTMETER_MAIN                                          05/18/2024 16:55:42 PAGE 1   
+C51 COMPILER V9.60.0.0   USBXPRESS_VOLTMETER_MAIN                                          05/23/2024 03:19:09 PAGE 1   
 
 
 C51 COMPILER V9.60.0.0, COMPILATION OF MODULE USBXPRESS_VOLTMETER_MAIN
@@ -15,9 +15,9 @@ COMPILER INVOKED BY: C:\SiliconLabs\SimplicityStudio\v5\developer\toolchains\kei
 line level    source
 
    1          /*
-   2           * USBXpress_Echo_main.c
+   2           * USBXpress_Voltmeter_main.c
    3           *
-   4           * Main routine for USBXpress Echo example.
+   4           * Main routine for USBXpress Voltmeter.
    5           *
    6           * This example echos any data sent over usb back up to the host.
    7           * It also blinks an led at 1Hz to indicate that the core is running.
@@ -37,7 +37,7 @@ line level    source
   21          // Global Constants
   22          
   23          #define USB_BUFFER_SIZE    512          /// Size of USB buffer
-  24          
+  24          #define REQUEST_COMMAND    48
   25          SI_SBIT (LED, SFR_P2, 2);               // LED='1' means ON
   26          
   27          #define BLINK_RATE         500          // ms per blink
@@ -56,220 +56,248 @@ line level    source
   40          void Port_Init (void);
   41          void Timer0_Init ();
   42          void my_usbxp_callback(void);
-  43          
-  44          // -----------------------------------------------------------------------------
-  45          // Variable Declarations
-  46          
-  47          SI_SEGMENT_VARIABLE(timerCounter, uint16_t, SI_SEG_XDATA);
-  48          
-  49          /// Buffer for holding USB data
-C51 COMPILER V9.60.0.0   USBXPRESS_VOLTMETER_MAIN                                          05/18/2024 16:55:42 PAGE 2   
+  43          void ADC_Init(void);
+  44          
+  45          // -----------------------------------------------------------------------------
+  46          // Variable Declarations
+  47          
+  48          SI_SEGMENT_VARIABLE(timerCounter, uint16_t, SI_SEG_XDATA);
+  49          
+C51 COMPILER V9.60.0.0   USBXPRESS_VOLTMETER_MAIN                                          05/23/2024 03:19:09 PAGE 2   
 
-  50          SI_SEGMENT_VARIABLE(usbBuffer[USB_BUFFER_SIZE], uint8_t, SI_SEG_XDATA);
-  51          
-  52          // -----------------------------------------------------------------------------
-  53          // Functions
-  54          
-  55          //-----------------------------------------------------------------------------
-  56          // SiLabs_Startup() Routine
-  57          // ----------------------------------------------------------------------------
-  58          // This function is called immediately after reset, before the initialization
-  59          // code is run in SILABS_STARTUP.A51 (which runs before main() ). This is a
-  60          // useful place to disable the watchdog timer, which is enable by default
-  61          // and may trigger before main() in some instances.
-  62          //-----------------------------------------------------------------------------
-  63          void SiLabs_Startup (void)
-  64          {
-  65   1        PCA0MD &= ~PCA0MD_WDTE__BMASK;         // Disable watchdog timer
-  66   1      }
-  67           
-  68          /**************************************************************************//**
-  69           * @brief Main loop
-  70           *
-  71           * The main loop sets up the device and then waits forever. All active tasks
-  72           * are ISR driven.
-  73           *
-  74           *****************************************************************************/
-  75          void main (void)
-  76          {
-  77   1      
+  50          /// Buffer for holding USB data
+  51          SI_SEGMENT_VARIABLE(usbBuffer[USB_BUFFER_SIZE], uint8_t, SI_SEG_XDATA);
+  52          
+  53          // -----------------------------------------------------------------------------
+  54          // Functions
+  55          
+  56          //-----------------------------------------------------------------------------
+  57          // SiLabs_Startup() Routine
+  58          // ----------------------------------------------------------------------------
+  59          // This function is called immediately after reset, before the initialization
+  60          // code is run in SILABS_STARTUP.A51 (which runs before main() ). This is a
+  61          // useful place to disable the watchdog timer, which is enable by default
+  62          // and may trigger before main() in some instances.
+  63          //-----------------------------------------------------------------------------
+  64          void SiLabs_Startup (void)
+  65          {
+  66   1        PCA0MD &= ~PCA0MD_WDTE__BMASK;         // Disable watchdog timer
+  67   1      }
+  68           
+  69          /**************************************************************************//**
+  70           * @brief Main loop
+  71           *
+  72           * The main loop sets up the device and then waits forever. All active tasks
+  73           * are ISR driven.
+  74           *
+  75           *****************************************************************************/
+  76          void main (void)
+  77          {
   78   1      
-  79   1        VDM0CN = VDM0CN_VDMEN__ENABLED;        // Enable VDD Monitor
-  80   1        Delay ();                              // Wait for VDD Monitor to stabilize
-  81   1        RSTSRC = RSTSRC_PORSF__SET;            // Enable VDD Monitor as a reset source
-  82   1      
-  83   1        Sysclk_Init ();                        // Initialize system clock
-  84   1        Port_Init ();                          // Initialize crossbar and GPIO
-  85   1        Timer0_Init();                         // Initialize Timer0
-  86   1      
-  87   1        // USBXpress Initialization
-  88   1        USBX_init(&initStruct);
-  89   1      
-  90   1        // Enable USBXpress API interrupts
-  91   1        USBX_apiCallbackEnable(my_usbxp_callback);
-  92   1      
-  93   1        IE_EA = 1;       // Enable global interrupts
+  79   1      
+  80   1        VDM0CN = VDM0CN_VDMEN__ENABLED;        // Enable VDD Monitor
+  81   1        Delay ();                              // Wait for VDD Monitor to stabilize
+  82   1        RSTSRC = RSTSRC_PORSF__SET;            // Enable VDD Monitor as a reset source
+  83   1      
+  84   1        Sysclk_Init ();                        // Initialize system clock
+  85   1        Port_Init ();                          // Initialize crossbar and GPIO
+  86   1        Timer0_Init();                         // Initialize Timer0
+  87   1        ADC_Init();                              // Inirialize ADC0
+  88   1      
+  89   1        // USBXpress Initialization
+  90   1        USBX_init(&initStruct);
+  91   1      
+  92   1        // Enable USBXpress API interrupts
+  93   1        USBX_apiCallbackEnable(my_usbxp_callback);
   94   1      
-  95   1        while (1)
-  96   1        {
-  97   2        }                                // Spin forever
-  98   1      }
-  99          
- 100          
- 101          // -------------------------------
- 102          // Interrupt Service Routines
- 103          
- 104          /**************************************************************************//**
- 105           * @brief Timer0_ISR
- 106           *
- 107           * This routine changes the state of the LED whenever Timer0 overflows.
+  95   1        IE_EA = 1;       // Enable global interrupts
+  96   1      
+  97   1        while (1)
+  98   1        {
+  99   2        }                                // Spin forever
+ 100   1      }
+ 101          
+ 102          
+ 103          // -------------------------------
+ 104          // Interrupt Service Routines
+ 105          
+ 106          /**************************************************************************//**
+ 107           * @brief Timer0_ISR
  108           *
- 109           *****************************************************************************/
- 110          SI_INTERRUPT(Timer0_ISR, TIMER0_IRQn)
- 111          {
- 112   1          TH0 = TIMER_RELOAD_HIGH;            // Reload Timer0 High register
-C51 COMPILER V9.60.0.0   USBXPRESS_VOLTMETER_MAIN                                          05/18/2024 16:55:42 PAGE 3   
+ 109           * This routine changes the state of the LED whenever Timer0 overflows.
+ 110           *
+ 111           *****************************************************************************/
+ 112          SI_INTERRUPT(Timer0_ISR, TIMER0_IRQn)
+C51 COMPILER V9.60.0.0   USBXPRESS_VOLTMETER_MAIN                                          05/23/2024 03:19:09 PAGE 3   
 
- 113   1          TL0 = TIMER_RELOAD_LOW;             // Reload Timer0 Low register
- 114   1      
- 115   1          timerCounter++;
- 116   1          if(timerCounter >= BLINK_RATE)
- 117   1          {
- 118   2            LED = !LED;                       // Change state of LED
- 119   2            timerCounter = 0;
- 120   2          }
- 121   1      }
- 122          
- 123          /**************************************************************************//**
- 124           * @brief USBXpress call-back
- 125           *
- 126           * This function is called by USBXpress. In this example any received data
- 127           * sent back up to the host.
- 128           *
- 129           *****************************************************************************/
- 130          void my_usbxp_callback(void)
- 131          {
- 132   1        SI_SEGMENT_VARIABLE(readLen, uint16_t, SI_SEG_IDATA);
- 133   1        SI_SEGMENT_VARIABLE(writeLen, uint16_t, SI_SEG_IDATA);
- 134   1        uint32_t intval = USBX_getCallbackSource();
- 135   1      
- 136   1        // Suspend
- 137   1        if (intval & USBX_DEV_SUSPEND)
- 138   1        {
- 139   2          // Turn off LED
- 140   2          LED = 0;
- 141   2      
- 142   2          // Enter suspend mode to save power
- 143   2          USBX_suspend();
- 144   2        }
- 145   1      
- 146   1        // Device opened
- 147   1        if (intval & USBX_DEV_OPEN)
- 148   1        {
- 149   2          // Prime first read
- 150   2          USBX_blockRead(usbBuffer, USB_BUFFER_SIZE, &readLen);
- 151   2        }
- 152   1      
- 153   1        // USB read complete
- 154   1        if (intval & USBX_RX_COMPLETE)
- 155   1        {
- 156   2          // If data was received, echo it back to the host
- 157   2          if (readLen)
- 158   2          {
- 159   3            USBX_blockWrite(usbBuffer, readLen, &writeLen);
- 160   3          }
- 161   2          // If data of zero-length was received, start a new read
- 162   2          else
- 163   2          {
- 164   3            USBX_blockRead(usbBuffer, USB_BUFFER_SIZE, &readLen);
- 165   3          }
- 166   2        }
- 167   1      
- 168   1        // USB write complete
- 169   1        if (intval & USBX_TX_COMPLETE)
- 170   1        {
- 171   2          // The data was sent to the host, so start a new read
- 172   2          USBX_blockRead(usbBuffer, USB_BUFFER_SIZE, &readLen);
- 173   2        }
- 174   1      }
- 175          
-C51 COMPILER V9.60.0.0   USBXPRESS_VOLTMETER_MAIN                                          05/18/2024 16:55:42 PAGE 4   
+ 113          {
+ 114   1          TH0 = TIMER_RELOAD_HIGH;            // Reload Timer0 High register
+ 115   1          TL0 = TIMER_RELOAD_LOW;             // Reload Timer0 Low register
+ 116   1      
+ 117   1          timerCounter++;
+ 118   1          if(timerCounter >= BLINK_RATE)
+ 119   1          {
+ 120   2            LED = !LED;                       // Change state of LED
+ 121   2            timerCounter = 0;
+ 122   2          }
+ 123   1      }
+ 124          
+ 125          /**************************************************************************//**
+ 126           * @brief USBXpress call-back
+ 127           *
+ 128           * This function is called by USBXpress. In this example any received data
+ 129           * sent back up to the host.
+ 130           *
+ 131           *****************************************************************************/
+ 132          void my_usbxp_callback(void)
+ 133          {
+ 134   1        SI_SEGMENT_VARIABLE(readLen, uint16_t, SI_SEG_IDATA);
+ 135   1        SI_SEGMENT_VARIABLE(writeLen, uint16_t, SI_SEG_IDATA);
+ 136   1        uint32_t intval = USBX_getCallbackSource();
+ 137   1      
+ 138   1        // Suspend
+ 139   1        if (intval & USBX_DEV_SUSPEND)
+ 140   1        {
+ 141   2          // Turn off LED
+ 142   2          LED = 0;
+ 143   2      
+ 144   2          // Enter suspend mode to save power
+ 145   2          USBX_suspend();
+ 146   2        }
+ 147   1      
+ 148   1        // Device opened
+ 149   1        if (intval & USBX_DEV_OPEN)
+ 150   1        {
+ 151   2          // Prime first read
+ 152   2          USBX_blockRead(usbBuffer, USB_BUFFER_SIZE, &readLen);
+ 153   2        }
+ 154   1      
+ 155   1        // USB read complete
+ 156   1        if (intval & USBX_RX_COMPLETE)
+ 157   1        {
+ 158   2          // If data was received, echo it back to the host
+ 159   2          if (readLen && usbBuffer[0] == REQUEST_COMMAND)
+ 160   2          {
+ 161   3            // Fill the buffer with 255
+ 162   3      //      uint16_t i = 0;
+ 163   3      //      for (i = 0; i < USB_BUFFER_SIZE; i++)
+ 164   3      //      {
+ 165   3      //        usbBuffer[i] = 255;
+ 166   3      //      }
+ 167   3              usbBuffer[0] = ADC0L;
+ 168   3              usbBuffer[1] = ADC0H;
+ 169   3            USBX_blockWrite(usbBuffer, 2, &writeLen);
+ 170   3          }
+ 171   2          // If data of zero-length was received, start a new read
+ 172   2          else
+ 173   2          {
+ 174   3            USBX_blockRead(usbBuffer, USB_BUFFER_SIZE, &readLen);
+ 175   3          }
+C51 COMPILER V9.60.0.0   USBXPRESS_VOLTMETER_MAIN                                          05/23/2024 03:19:09 PAGE 4   
 
- 176          // -------------------------------
- 177          // Initialization Functions
- 178          
- 179          /**************************************************************************//**
- 180           * @brief clock initialization
- 181           *
- 182           * Set fastest system clock (48Mhz)
- 183           *****************************************************************************/
- 184          void Sysclk_Init (void)
- 185          {
- 186   1        OSCICN  |= OSCICN_IOSCEN__ENABLED
- 187   1                   | OSCICN_IFCN__HFOSC_DIV_1;        // Select full speed HFOSC
- 188   1      
- 189   1        CLKMUL = 0x00;                                //clear multiplier
- 190   1        CLKMUL |= CLKMUL_MULEN__ENABLED;              //enable multiplier
- 191   1        Delay();
- 192   1        CLKMUL |= CLKMUL_MULINIT__SET;                //Initialize multiplier
- 193   1        Delay();
- 194   1      
- 195   1        while(!(CLKMUL & CLKMUL_MULRDY__BMASK));      // Wait for multiplier to lock
- 196   1      
- 197   1        CLKSEL = CLKSEL_CLKSL__CLKMUL_DIV_2;          // select max sysclk
- 198   1      }
- 199          
- 200          /**************************************************************************//**
- 201           * @brief Port initialization
- 202           *
- 203           * P2.2   digital   push-pull    LED1
- 204           *
- 205           *****************************************************************************/
- 206          static void Port_Init (void)
- 207          {
- 208   1         P2MDOUT   = P2MDOUT_B2__PUSH_PULL;   // P2.2 is push-pull
- 209   1         XBR1      = XBR1_XBARE__ENABLED;     // Enable the crossbar
- 210   1      }
- 211          
- 212          /**************************************************************************//**
- 213           * @brief Timer initialization
- 214           *
- 215           * @param counts:
- 216           *   calculated Timer overflow rate range is positive range of integer: 0 to 32767
- 217           *
- 218           * Configure Timer0 to 16-bit auto-reload and generate an interrupt at
- 219           * interval specified by <counts> using SYSCLK/48 as its time base.
- 220           *
- 221           *****************************************************************************/
- 222          void Timer0_Init()
- 223          {
- 224   1         TH0 = TIMER_RELOAD_HIGH;            // Init Timer0 High register
- 225   1         TL0 = TIMER_RELOAD_LOW;             // Init Timer0 Low register
- 226   1         TMOD = TMOD_T0M__MODE1;             // Timer0 in 16-bit mode
- 227   1         CKCON = CKCON_SCA__SYSCLK_DIV_48;   // Timer0 uses a 1:48 prescaler
- 228   1         IE_ET0 = 1;                         // Timer0 interrupt enabled
- 229   1         TCON = TCON_TR0__RUN;               // Timer0 ON
- 230   1      }
- 231          
- 232          
- 233          /**************************************************************************//**
- 234           * @breif delay for approximately 1ms @ 48Mhz
- 235           *
- 236           *****************************************************************************/
- 237          void Delay (void)
- 238          {
-C51 COMPILER V9.60.0.0   USBXPRESS_VOLTMETER_MAIN                                          05/18/2024 16:55:42 PAGE 5   
+ 176   2        }
+ 177   1      
+ 178   1        // USB write complete
+ 179   1        if (intval & USBX_TX_COMPLETE)
+ 180   1        {
+ 181   2          // The data was sent to the host, so start a new read
+ 182   2          USBX_blockRead(usbBuffer, USB_BUFFER_SIZE, &readLen);
+ 183   2        }
+ 184   1      }
+ 185          
+ 186          
+ 187          // -------------------------------
+ 188          // Initialization Functions
+ 189          
+ 190          /**************************************************************************//**
+ 191           * @brief clock initialization
+ 192           *
+ 193           * Set fastest system clock (48Mhz)
+ 194           *****************************************************************************/
+ 195          void Sysclk_Init (void)
+ 196          {
+ 197   1        OSCICN  |= OSCICN_IOSCEN__ENABLED
+ 198   1                   | OSCICN_IFCN__HFOSC_DIV_1;        // Select full speed HFOSC
+ 199   1      
+ 200   1        CLKMUL = 0x00;                                //clear multiplier
+ 201   1        CLKMUL |= CLKMUL_MULEN__ENABLED;              //enable multiplier
+ 202   1        Delay();
+ 203   1        CLKMUL |= CLKMUL_MULINIT__SET;                //Initialize multiplier
+ 204   1        Delay();
+ 205   1      
+ 206   1        while(!(CLKMUL & CLKMUL_MULRDY__BMASK));      // Wait for multiplier to lock
+ 207   1      
+ 208   1        CLKSEL = CLKSEL_CLKSL__CLKMUL_DIV_2;          // select max sysclk
+ 209   1      }
+ 210          
+ 211          /**************************************************************************//**
+ 212           * @brief Port initialization
+ 213           *
+ 214           * P2.2   digital   push-pull    LED1
+ 215           *
+ 216           *****************************************************************************/
+ 217          static void Port_Init (void)
+ 218          {
+ 219   1         P2MDOUT   = P2MDOUT_B2__PUSH_PULL;   // P2.2 is push-pull
+ 220   1         XBR1      = XBR1_XBARE__ENABLED;     // Enable the crossbar
+ 221   1      }
+ 222          
+ 223          
+ 224          /**************************************************************************//**
+ 225           * @brief ADC initialization
+ 226           *
+ 227           * AMX0P  P1.7   ADC read positive
+ 228           * AMX0N  GND    ADC read negative (single-ended mode)
+ 229           * Enable conversion and track mode (conversion only when "1" is written to AD0BUSY bit)
+ 230           *
+ 231           *****************************************************************************/
+ 232          static void ADC_Init (void)
+ 233          {
+ 234   1         AMX0P      = AMX0P_AMX0P__ADC0P7;   // Select ADC0P.7
+ 235   1         AMX0N      = AMX0N_AMX0N__GND;      // Ground (single-ended mode)
+ 236   1         ADC0CN     = ADC0CN_ADEN__BMASK;    // Enable conversion and track mode
+ 237   1                                             // (conversion only when "1" is written to AD0BUSY bit)
+ 238   1      }
+C51 COMPILER V9.60.0.0   USBXPRESS_VOLTMETER_MAIN                                          05/23/2024 03:19:09 PAGE 5   
 
- 239   1         int16_t x;
- 240   1         for (x = 0; x < 500; x)
- 241   1         {
- 242   2            x++;
- 243   2         }
- 244   1      }
+ 239          
+ 240          /**************************************************************************//**
+ 241           * @brief Timer initialization
+ 242           *
+ 243           * @param counts:
+ 244           *   calculated Timer overflow rate range is positive range of integer: 0 to 32767
+ 245           *
+ 246           * Configure Timer0 to 16-bit auto-reload and generate an interrupt at
+ 247           * interval specified by <counts> using SYSCLK/48 as its time base.
+ 248           *
+ 249           *****************************************************************************/
+ 250          void Timer0_Init()
+ 251          {
+ 252   1         TH0 = TIMER_RELOAD_HIGH;            // Init Timer0 High register
+ 253   1         TL0 = TIMER_RELOAD_LOW;             // Init Timer0 Low register
+ 254   1         TMOD = TMOD_T0M__MODE1;             // Timer0 in 16-bit mode
+ 255   1         CKCON = CKCON_SCA__SYSCLK_DIV_48;   // Timer0 uses a 1:48 prescaler
+ 256   1         IE_ET0 = 1;                         // Timer0 interrupt enabled
+ 257   1         TCON = TCON_TR0__RUN;               // Timer0 ON
+ 258   1      }
+ 259          
+ 260          
+ 261          /**************************************************************************//**
+ 262           * @breif delay for approximately 1ms @ 48Mhz
+ 263           *
+ 264           *****************************************************************************/
+ 265          void Delay (void)
+ 266          {
+ 267   1         int16_t x;
+ 268   1         for (x = 0; x < 500; x)
+ 269   1         {
+ 270   2            x++;
+ 271   2         }
+ 272   1      }
 
 
 MODULE INFORMATION:   STATIC OVERLAYABLE
-   CODE SIZE        =    308    ----
+   CODE SIZE        =    335    ----
    CONSTANT SIZE    =   ----    ----
    XDATA SIZE       =    514    ----
    PDATA SIZE       =   ----    ----

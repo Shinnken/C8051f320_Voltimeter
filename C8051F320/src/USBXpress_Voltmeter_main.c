@@ -21,7 +21,7 @@
 // Global Constants
 
 #define USB_BUFFER_SIZE    512          /// Size of USB buffer
-
+#define REQUEST_COMMAND    48
 SI_SBIT (LED, SFR_P2, 2);               // LED='1' means ON
 
 #define BLINK_RATE         500          // ms per blink
@@ -40,6 +40,7 @@ void Sysclk_Init (void);
 void Port_Init (void);
 void Timer0_Init ();
 void my_usbxp_callback(void);
+void ADC_Init(void);
 
 // -----------------------------------------------------------------------------
 // Variable Declarations
@@ -155,9 +156,17 @@ void my_usbxp_callback(void)
   if (intval & USBX_RX_COMPLETE)
   {
     // If data was received, echo it back to the host
-    if (readLen)
+    if (readLen && usbBuffer[0] == REQUEST_COMMAND)
     {
-      USBX_blockWrite(usbBuffer, readLen, &writeLen);
+      // Fill the buffer with 255
+//      uint16_t i = 0;
+//      for (i = 0; i < USB_BUFFER_SIZE; i++)
+//      {
+//        usbBuffer[i] = 255;
+//      }
+        usbBuffer[0] = ADC0L;
+        usbBuffer[1] = ADC0H;
+      USBX_blockWrite(usbBuffer, 2, &writeLen);
     }
     // If data of zero-length was received, start a new read
     else
@@ -173,6 +182,7 @@ void my_usbxp_callback(void)
     USBX_blockRead(usbBuffer, USB_BUFFER_SIZE, &readLen);
   }
 }
+
 
 // -------------------------------
 // Initialization Functions
@@ -210,11 +220,20 @@ static void Port_Init (void)
    XBR1      = XBR1_XBARE__ENABLED;     // Enable the crossbar
 }
 
+
+/**************************************************************************//**
+ * @brief ADC initialization
+ *
+ * AMX0P  P1.7   ADC read positive
+ * AMX0N  GND    ADC read negative (single-ended mode)
+ * Enable conversion and track mode (conversion only when "1" is written to AD0BUSY bit)
+ *
+ *****************************************************************************/
 static void ADC_Init (void)
 {
    AMX0P      = AMX0P_AMX0P__ADC0P7;   // Select ADC0P.7
    AMX0N      = AMX0N_AMX0N__GND;      // Ground (single-ended mode)
-   ADC0CN     = 0xc0;                  // Enable conversion and track mode
+   ADC0CN     = ADC0CN_ADEN__BMASK;    // Enable conversion and track mode
                                        // (conversion only when "1" is written to AD0BUSY bit)
 }
 

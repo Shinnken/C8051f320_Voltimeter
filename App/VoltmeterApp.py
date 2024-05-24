@@ -66,8 +66,8 @@ class VoltmeterApp():
 
 
     def start_plot(self):
-        value = self.communication.read(10)
-        self._data.append(value)
+        value = self.communication.read(8)
+        self._data.append(int.from_bytes(value, byteorder='big'))
         self.ax.clear()  # Clear the plot
         self.ax.plot(self._data, color="blue")
     
@@ -76,7 +76,7 @@ class VoltmeterApp():
         self.ax.set_xlabel("Time(Sec)")
         self.ax.set_ylabel("Voltage(V)")
         self.ax.set_xlim(0, 200)
-        self.ax.set_ylim(min(self._data)-10000, max(self._data)+10000)
+        self.ax.set_ylim(min(self._data)-100, max(self._data)+100)
         self.ax.grid(visible=True, which='major', color='#666666', linestyle='-')
         self.ax.minorticks_on()
         self.canvas.draw_idle()
